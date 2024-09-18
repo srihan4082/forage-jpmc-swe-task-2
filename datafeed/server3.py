@@ -213,8 +213,16 @@ def get(req_handler, routes):
                 req_handler.send_header('Access-Control-Allow-Origin', '*')
                 req_handler.end_headers()
                 params = read_params(req_handler.path)
-                data = json.dumps(handler(routes, params)) + '\n'
-                req_handler.wfile.write(bytes(data, encoding='utf-8'))
+                # data = json.dumps(handler(routes, params)) + '\n'
+                # req_handler.wfile.write(bytes(data, encoding='utf-8'))
+                data = handler(routes, params)
+
+                # Ensure data is valid JSON before sending
+                if data is not None:
+                    json_data = json.dumps(data) + '\n'
+                    req_handler.wfile.write(bytes(json_data, encoding='utf-8'))
+                else:
+                    req_handler.wfile.write(bytes('[]', encoding='utf-8'))  # Send empty array if no data
                 return
 
 
@@ -262,7 +270,12 @@ class App(object):
         self._data_1 = order_book(read_csv(), self._book_1, 'ABC')
         self._data_2 = order_book(read_csv(), self._book_2, 'DEF')
         self._rt_start = datetime.now()
-        self._sim_start, _, _ = next(self._data_1)
+        # self._sim_start, _, _ = next(self._data_1)
+        first_item_1 = next(self._data_1, None)
+        if first_item_1 is None:
+            raise ValueError("No data found for stock ABC in the CSV file.")
+        self._sim_start, _, _ = first_item_1
+
         self.read_10_first_lines()
 
     @property
@@ -285,8 +298,8 @@ class App(object):
 
     def read_10_first_lines(self):
         for _ in iter(range(10)):
-            next(self._data_1)
-            next(self._data_2)
+            next(self._data_1, None)
+            next(self._data_2, None)
 
     @route('/query')
     def handle_query(self, x):
